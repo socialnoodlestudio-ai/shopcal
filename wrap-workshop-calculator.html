@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wrap Workshop Calculator (Simple + Advanced)</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#151923; --ink:#e9eef7; --muted:#aab3c5;
+    --line:#222839; --chip:#1c2230; --good:#39d98a;
+  }
+  *{box-sizing:border-box} html,body{height:100%}
+  body{margin:0; background:linear-gradient(180deg,#0c0f14,#0f1115 60%); color:var(--ink);
+       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+  .wrap{max-width:980px; margin:28px auto; padding:0 16px}
+  h1{font-size:20px; margin:0 0 8px}
+  .muted{color:var(--muted)}
+  .toggle{display:flex; gap:8px; align-items:center; margin:10px 0 18px}
+  .btn{background:var(--chip); border:1px solid var(--line); color:var(--ink);
+       padding:8px 10px; border-radius:10px; cursor:pointer}
+  .btn.active{outline:2px solid #2b3350}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px}
+  h2{font-size:14px; margin:0 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px}
+  .fields{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  label{font-size:12px; color:var(--muted)}
+  input,select{width:100%; background:#0e121a; color:var(--ink); border:1px solid #22283a;
+       border-radius:10px; padding:10px 12px; outline:none}
+  input:focus,select:focus{border-color:#2d3853}
+  .totals{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:8px}
+  .totals-2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px}
+  .k{color:var(--muted); font-size:12px}
+  .v{font-size:18px; margin-top:4px}
+  .v.big{font-size:22px}
+  .v.good{color:var(--good)}
+  table{width:100%; border-collapse:collapse; margin-top:10px; font-size:13px}
+  th,td{padding:9px 8px; border-bottom:1px solid #20263a; text-align:left}
+  th{color:var(--muted)}
+  .foot{margin-top:10px; color:var(--muted); font-size:12px}
+  .advanced{display:none}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}.fields{grid-template-columns:1fr}.totals{grid-template-columns:1fr 1fr}.totals-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Wrap Workshop Calculator</h1>
+  <div class="muted">Simple view shows your per-workshop and steady monthly income (for multi-week courses). Switch to Advanced to fine-tune everything.</div>
+
+  <div class="toggle">
+    <button id="btnSimple" class="btn active">Simple</button>
+    <button id="btnAdvanced" class="btn">Advanced</button>
+  </div>
+
+  <!-- SIMPLE MODE -->
+  <div id="simpleMode">
+    <div class="grid">
+      <section class="panel">
+        <h2>Simple Inputs</h2>
+        <div class="fields">
+          <div>
+            <label>Tuition per student ($)</label>
+            <input type="number" id="s_tuition" value="800" min="0" step="10">
+          </div>
+          <div>
+            <label>Students per workshop</label>
+            <input type="number" id="s_students" value="10" min="1" step="1">
+          </div>
+          <div>
+            <label><b>Workshops started per month</b></label>
+            <input type="number" id="s_startsPerMonth" value="1" min="0" step="1">
+          </div>
+          <div>
+            <label><b>Workshop duration (weeks)</b></label>
+            <input type="number" id="s_durationWeeks" value="6" min="1" step="1">
+          </div>
+          <div>
+            <label>Your share % (after consumables)</label>
+            <input type="number" id="s_sharePct" value="50" min="0" max="100" step="1">
+          </div>
+          <div>
+            <label>Consumables per student ($)</label>
+            <input type="number" id="s_consPerStu" value="100" min="0" step="5">
+          </div>
+        </div>
+
+        <div class="foot">
+          Simple mode assumes a **share model**: your pay = <b>Your %</b> × (<b>tuition</b> − <b>consumables</b>).  
+          Monthly is smoothed for multi-week workshops: <i>per-workshop pay × starts/month × (4.33 ÷ duration-weeks)</i>.  
+          Bi-weekly paycheck = monthly ÷ 2.
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Results</h2>
+        <div class="totals">
+          <div class="card">
+            <div class="k">Tuition (per workshop)</div>
+            <div class="v" id="s_revPW">$0</div>
+          </div>
+          <div class="card">
+            <div class="k">Consumables (per workshop)</div>
+            <div class="v" id="s_consPW">$0</div>
+          </div>
+          <div class="card">
+            <div class="k">Your pay (per workshop)</div>
+            <div class="v good" id="s_youPW">$0</div>
+          </div>
+          <div class="card">
+            <div class="k">College net (per workshop)</div>
+            <div class="v" id="s_colPW">$0</div>
+          </div>
+        </div>
+
+        <div class="totals-2">
+          <div class="card">
+            <div class="k">🎯 Your income per month (steady state)</div>
+            <div class="v big good" id="s_youPM">$0</div>
+          </div>
+          <div class="card">
+            <div class="k">Your bi-weekly paycheck (est.)</div>
+            <div class="v big good" id="s_youPBW">$0</div>
+          </div>
+        </div>
+
+        <table>
+          <thead><tr><th></th><th>You</th><th>College</th><th>Notes</th></tr></thead>
+          <tbody id="s_summaryRows"></tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+
+  <!-- ADVANCED MODE (unchanged) -->
+  <div id="advancedMode" class="advanced">
+    <div class="grid">
+      <section class="panel">
+        <h2>Advanced Inputs</h2>
+        <div class="fields">
+          <div>
+            <label>Tuition per student ($)</label>
+            <input type="number" id="a_tuition" value="800" min="0" step="10">
+          </div>
+          <div>
+            <label>Students per workshop</label>
+            <input type="number" id="a_students" value="10" min="1" step="1">
+          </div>
+          <div>
+            <label>Consumables per student ($)</label>
+            <input type="number" id="a_consPerStu" value="100" min="0" step="5">
+          </div>
+          <div>
+            <label>Other variable costs per workshop ($)</label>
+            <input type="number" id="a_otherVar" value="0" min="0" step="10">
+          </div>
+          <div>
+            <label>Amortize startup per workshop ($) <span class="muted">(optional)</span></label>
+            <input type="number" id="a_startupPW" value="0" min="0" step="10">
+          </div>
+          <div>
+            <label>Workshops per semester</label>
+            <input type="number" id="a_wPerSem" value="2" min="0" step="1">
+          </div>
+          <div>
+            <label>Months per semester</label>
+            <input type="number" id="a_monthsPerSem" value="3" min="1" step="1">
+          </div>
+          <div>
+            <label>Workshops per year</label>
+            <input type="number" id="a_wPerYear" value="8" min="0" step="1">
+          </div>
+        </div>
+
+        <div style="margin-top:12px">
+          <label>Compensation model</label>
+          <select id="a_model">
+            <option value="flat">Flat fee per workshop</option>
+            <option value="share" selected>Revenue share % (after consumables)</option>
+            <option value="hybrid">Hybrid: Base + per-student bonus</option>
+          </select>
+        </div>
+
+        <div id="a_modelFields" class="fields" style="margin-top:12px"></div>
+
+        <div class="foot">
+          Tip: Spread a one-time setup (e.g., $3,250) across 10 workshops with amortization ≈ $325.
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Results</h2>
+        <div class="totals">
+          <div class="card">
+            <div class="k">Tuition (per workshop)</div>
+            <div class="v" id="a_revPW">$0</div>
+          </div>
+          <div class="card">
+            <div class="k">All costs (per workshop)</div>
+            <div class="v" id="a_costPW">$0</div>
+          </div>
+          <div class="card">
+            <div class="k">Your pay (per workshop)</div>
+            <div class="v good" id="a_youPW">$0</div>
+          </div>
+          <div class="card">
+            <div class="k">College net (per workshop)</div>
+            <div class="v" id="a_colPW">$0</div>
+          </div>
+        </div>
+
+        <div class="totals-2">
+          <div class="card">
+            <div class="k">🎯 Your income per month (est.)</div>
+            <div class="v big good" id="a_youPM">$0</div>
+          </div>
+          <div class="card">
+            <div class="k">College per month (est.)</div>
+            <div class="v big" id="a_colPM">$0</div>
+          </div>
+        </div>
+
+        <table>
+          <thead><tr><th></th><th>You</th><th>College</th><th>Notes</th></tr></thead>
+          <tbody id="a_summaryRows"></tbody>
+        </table>
+
+        <table>
+          <tbody id="a_break"></tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const fmt = n => n.toLocaleString(undefined,{style:'currency',currency:'USD',maximumFractionDigits:0});
+
+  // Toggle
+  const btnSimple = $('btnSimple'), btnAdvanced = $('btnAdvanced');
+  const simpleMode = $('simpleMode'), advancedMode = $('advancedMode');
+  btnSimple.addEventListener('click', ()=>{
+    btnSimple.classList.add('active'); btnAdvanced.classList.remove('active');
+    simpleMode.style.display='block'; advancedMode.style.display='none'; calcSimple();
+  });
+  btnAdvanced.addEventListener('click', ()=>{
+    btnAdvanced.classList.add('active'); btnSimple.classList.remove('active');
+    simpleMode.style.display='none'; advancedMode.style.display='block';
+    syncSimpleToAdvanced(); renderAdvancedFields(); calcAdvanced();
+  });
+
+  // SIMPLE CALC (share model; multi-week smoothing)
+  function calcSimple(){
+    const tuition = +$('s_tuition').value||0;
+    const students = +$('s_students').value||0;
+    const startsPerMonth = +$('s_startsPerMonth').value||0;
+    const durationWeeks = Math.max(1, +$('s_durationWeeks').value||6);
+    const sharePct = Math.max(0, Math.min(100, +$('s_sharePct').value||0));
+    const consPerStu = +$('s_consPerStu').value||0;
+
+    const revPW = tuition * students;
+    const consPW = consPerStu * students;
+    const instrRevPW = revPW - consPW; // revenue to split
+    const youPW = instrRevPW * (sharePct/100);
+    const colPW = instrRevPW - youPW;
+
+    // Steady-state smoothing for multi-week workshops
+    const monthlyFactor = 4.33 / durationWeeks; // fraction of a workshop recognized per month
+    const youPerMonth = youPW * startsPerMonth * monthlyFactor;
+    const colPerMonth = colPW * startsPerMonth * monthlyFactor;
+
+    $('s_revPW').textContent = fmt(revPW);
+    $('s_consPW').textContent = fmt(consPW);
+    $('s_youPW').textContent = fmt(youPW);
+    $('s_colPW').textContent = fmt(colPW);
+
+    $('s_youPM').textContent = fmt(youPerMonth);
+    $('s_youPBW').textContent = fmt(youPerMonth/2);
+
+    $('s_summaryRows').innerHTML = `
+      <tr><td>Per Workshop</td><td>${fmt(youPW)}</td><td>${fmt(colPW)}</td><td>${sharePct}% of (tuition − consumables)</td></tr>
+      <tr><td>Per Month (steady state)</td><td>${fmt(youPerMonth)}</td><td>${fmt(colPerMonth)}</td>
+          <td>${startsPerMonth} starts/mo · ${durationWeeks} wks each</td></tr>
+    `;
+  }
+
+  // ADVANCED
+  const a_model = $('a_model'), a_modelFields = $('a_modelFields');
+  function renderAdvancedFields(){
+    const m = a_model.value;
+    a_modelFields.innerHTML = '';
+    if(m==='flat'){
+      a_modelFields.innerHTML = `
+        <div>
+          <label for="a_flatFee">Flat fee per workshop ($)</label>
+          <input type="number" id="a_flatFee" value="3000" min="0" step="50">
+        </div>`;
+    } else if(m==='share'){
+      a_modelFields.innerHTML = `
+        <div>
+          <label for="a_sharePct">Your share % of instructional revenue</label>
+          <input type="number" id="a_sharePct" value="50" min="0" max="100" step="1">
+        </div>`;
+    } else if(m==='hybrid'){
+      a_modelFields.innerHTML = `
+        <div>
+          <label for="a_hybBase">Base pay per workshop ($)</label>
+          <input type="number" id="a_hybBase" value="3000" min="0" step="50">
+        </div>
+        <div>
+          <label for="a_hybBonus">Bonus per student over threshold ($)</label>
+          <input type="number" id="a_hybBonus" value="300" min="0" step="10">
+        </div>
+        <div>
+          <label for="a_hybThresh">Student threshold</label>
+          <input type="number" id="a_hybThresh" value="8" min="0" step="1">
+        </div>`;
+    }
+  }
+  a_model.addEventListener('change', ()=>{renderAdvancedFields(); calcAdvanced();});
+
+  function calcAdvanced(){
+    const tuition = +$('a_tuition').value||0;
+    const students = +$('a_students').value||0;
+    const consPerStu = +$('a_consPerStu').value||0;
+    const otherVar = +$('a_otherVar').value||0;
+    const startupPW = +$('a_startupPW').value||0;
+    const wPerSem = +$('a_wPerSem').value||0;
+    const monthsPerSem = +$('a_monthsPerSem').value||0;
+    const wPerYear = +$('a_wPerYear').value||0;
+
+    const revPW = tuition * students;
+    const consPW = consPerStu * students;
+    const totalCostsPW = consPW + otherVar + startupPW;
+    const marginAfterAllPW = revPW - totalCostsPW;
+    const instrRevPW = revPW - consPW; // basis for share model
+
+    let youPW = 0, label = '';
+    if(a_model.value==='flat'){
+      const flat = +($('a_flatFee')?.value||0);
+      youPW = flat; label = `Flat fee ${fmt(flat)}`;
+    } else if(a_model.value==='share'){
+      const pct = Math.max(0, Math.min(100, +($('a_sharePct')?.value||0)));
+      youPW = instrRevPW * (pct/100); label = `${pct}% of (tuition − consumables)`;
+    } else {
+      const base = +($('a_hybBase')?.value||0);
+      const bonus = +($('a_hybBonus')?.value||0);
+      const thresh = +($('a_hybThresh')?.value||0);
+      const over = Math.max(0, students - thresh);
+      youPW = base + (bonus * over);
+      label = `Base ${fmt(base)} + ${fmt(bonus)}/student over ${thresh}`;
+    }
+    const colPW = marginAfterAllPW - youPW;
+
+    // Advanced monthly: based on semester pacing
+    const workshopsPerMonth = (wPerSem>0 && monthsPerSem>0) ? (wPerSem / monthsPerSem) : 0;
+    const youPerMonth = youPW * workshopsPerMonth;
+    const colPerMonth = colPW * workshopsPerMonth;
+
+    const youPerSem = youPW * wPerSem;
+    const colPerSem = colPW * wPerSem;
+
+    const youPerYear = youPW * wPerYear;
+    const colPerYear = colPW * wPerYear;
+
+    $('a_revPW').textContent = fmt(revPW);
+    $('a_costPW').textContent = fmt(totalCostsPW);
+    $('a_youPW').textContent = fmt(youPW);
+    $('a_colPW').textContent = fmt(colPW);
+
+    $('a_youPM').textContent = fmt(youPerMonth);
+    $('a_colPM').textContent = fmt(colPerMonth);
+
+    $('a_summaryRows').innerHTML = `
+      <tr><td>Per Workshop</td><td>${fmt(youPW)}</td><td>${fmt(colPW)}</td><td>${label}</td></tr>
+      <tr><td>Per Month (est.)</td><td>${fmt(youPerMonth)}</td><td>${fmt(colPerMonth)}</td><td>${wPerSem} workshops / ${monthsPerSem||'—'} months</td></tr>
+      <tr><td>Per Semester</td><td>${fmt(youPerSem)}</td><td>${fmt(colPerSem)}</td><td>${wPerSem} workshops</td></tr>
+      <tr><td>Per Year</td><td>${fmt(youPerYear)}</td><td>${fmt(colPerYear)}</td><td>${wPerYear} workshops</td></tr>
+    `;
+
+    $('a_break').innerHTML = `
+      <tr><th>Breakdown (per workshop)</th><th>Value</th></tr>
+      <tr><td>Tuition revenue</td><td>${fmt(revPW)}</td></tr>
+      <tr><td>Consumables (per student × students)</td><td>${fmt(consPW)}</td></tr>
+      <tr><td>Other variable costs</td><td>${fmt(otherVar)}</td></tr>
+      <tr><td>Startup amortization</td><td>${fmt(startupPW)}</td></tr>
+      <tr><td><b>Margin after all workshop costs</b></td><td><b>${fmt(marginAfterAllPW)}</b></td></tr>
+      <tr><td>Your pay (${label})</td><td>${fmt(youPW)}</td></tr>
+      <tr><td><b>College net (per workshop)</b></td><td><b>${fmt(colPW)}</b></td></tr>
+    `;
+  }
+
+  // Sync simple -> advanced defaults on switch
+  function syncSimpleToAdvanced(){
+    $('a_tuition').value = $('s_tuition').value;
+    $('a_students').value = $('s_students').value;
+    $('a_consPerStu').value = $('s_consPerStu').value;
+    $('a_wPerSem').value = 2;           // keep advanced defaults
+    $('a_monthsPerSem').value = 3;
+    $('a_wPerYear').value = 8;
+    $('a_model').value = 'share';
+    renderAdvancedFields();
+    const sPct = +$('s_sharePct').value||50;
+    if ($('a_sharePct')) $('a_sharePct').value = sPct;
+  }
+
+  // Init
+  function init(){ calcSimple(); }
+
+  // Input listeners
+  document.addEventListener('input', ()=>{
+    if(simpleMode.style.display!=='none'){ calcSimple(); }
+    else { calcAdvanced(); }
+  });
+  init();
+</script>
+</body>
+</html>
